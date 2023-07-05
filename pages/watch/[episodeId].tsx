@@ -1,5 +1,4 @@
 import Link from "next/link";
-import Head from "next/head";
 import { Inter } from "next/font/google";
 import { GetStaticPaths } from "next/types";
 import VideoPlayer from "@/components/VideoPlayer";
@@ -47,7 +46,9 @@ const Watch = ({
   animeId: string;
   animeInfo: AnimeInfo;
 }) => {
-  const episodeNum: number = Number.parseInt(episodeId.split("-ep-")[1]);
+  const episodeNum: number = episodeId.includes("-ep-")
+    ? Number.parseInt(episodeId.split("-ep-")[1])
+    : 0;
   const ifNotLastEpisode: boolean =
     episodeNum !== Number.parseInt(animeInfo.totalEpisodes);
   const episodesArray = [...animeInfo.episodes].reverse();

@@ -1,12 +1,11 @@
 import Link from "next/link";
 import Image from "next/image";
-import Head from "next/head";
 import { Inter } from "next/font/google";
 import HtmlHead from "@/components/HtmlHead";
 
 const inter = Inter({ subsets: ["latin"] });
 
-export const getStaticProps = async () => {
+export const getServerSideProps = async () => {
   const res = await fetch(`${process.env.API_URL}top-airing`);
   const popular = await res.json();
   return { props: { popular: popular.results } };
