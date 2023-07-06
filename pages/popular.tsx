@@ -2,16 +2,33 @@ import Link from "next/link";
 import Image from "next/image";
 import { Inter } from "next/font/google";
 import HtmlHead from "@/components/HtmlHead";
+import { QueryClient, dehydrate, useQuery } from "@tanstack/react-query";
+import { getPopular } from "@/helper/getData";
 
 const inter = Inter({ subsets: ["latin"] });
 
 export const getServerSideProps = async () => {
-  const res = await fetch(`${process.env.API_URL}top-airing`);
-  const popular = await res.json();
-  return { props: { popular: popular.results } };
+  // const res = await fetch(`${process.env.API_URL}top-airing`);
+  // const popular = await res.json();
+  // return { props: { popular: popular.results } };
+
+  const queryClient = new QueryClient();
+  await queryClient.prefetchQuery(["popular"], getPopular);
+  return {
+    props: {
+      dehydratedState: dehydrate(queryClient),
+    },
+  };
 };
 
 const Popular = ({ popular }: { popular: Anime[] }) => {
+  const { data, isLoading } = useQuery({
+    queryKey: ["popular"],
+    queryFn: getPopular,
+  });
+  if (isLoading) {
+    return <p>Loading...</p>;
+  }
   return (
     <div className={inter.className}>
       <HtmlHead title="Popular | Animetsu" />
@@ -19,7 +36,7 @@ const Popular = ({ popular }: { popular: Anime[] }) => {
         Popular this season
       </h1>
       <ul className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 md:gap-4">
-        {popular.map((anime) => (
+        {data.map((anime: Anime) => (
           <li
             key={anime.id}
             className="mb-2 cursor-pointer"

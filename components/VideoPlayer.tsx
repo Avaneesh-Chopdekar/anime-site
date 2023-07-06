@@ -34,7 +34,10 @@ export default function VideoPlayer({ src }: { src: string }) {
 
   return (
     <>
-      <video ref={videoRef} />
+      <video
+        ref={videoRef}
+        className="aspect-video h-[180px] sm:h-[225px] md:h-[340px]"
+      />
     </>
   );
 }

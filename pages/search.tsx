@@ -2,23 +2,28 @@ import Link from "next/link";
 import Image from "next/image";
 import { Inter } from "next/font/google";
 import HtmlHead from "@/components/HtmlHead";
+import { QueryClient, dehydrate, useQuery } from "@tanstack/react-query";
+import { getSearch } from "@/helper/getData";
 
 const inter = Inter({ subsets: ["latin"] });
 
 export const getServerSideProps = async (context: { query: { q: string } }) => {
   const q = context.query.q;
-  const res = await fetch(`${process.env.API_URL}${q}`);
-  const searchResults = await res.json();
-  return { props: { q, searchResults: searchResults.results } };
+  // const res = await fetch(`${process.env.API_URL}${q}`);
+  // const searchResults = await res.json();
+  // return { props: { q, searchResults: searchResults.results } };
+  const queryClient = new QueryClient();
+  await queryClient.prefetchQuery(["search"], () => getSearch(q));
+  return {
+    props: { q, dehydratedState: dehydrate(queryClient) },
+  };
 };
 
-const Search = ({
-  q,
-  searchResults,
-}: {
-  q: string;
-  searchResults: Anime[];
-}) => {
+const Search = ({ q }: { q: string }) => {
+  const { data, isLoading } = useQuery({
+    queryKey: ["search"],
+    queryFn: () => getSearch(q),
+  });
   return (
     <div className={inter.className}>
       <HtmlHead title="Animetsu" />
@@ -26,7 +31,7 @@ const Search = ({
         Search results for: <i>{q}</i>
       </h1>
       <ul className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 md:gap-4">
-        {searchResults.map((anime) => (
+        {data.map((anime: Anime) => (
           <li
             key={anime.id}
             className="mb-2 cursor-pointer"

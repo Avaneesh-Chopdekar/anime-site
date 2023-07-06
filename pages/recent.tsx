@@ -2,16 +2,31 @@ import Link from "next/link";
 import Image from "next/image";
 import { Inter } from "next/font/google";
 import HtmlHead from "@/components/HtmlHead";
+import { dehydrate, QueryClient, useQuery } from "@tanstack/react-query";
+import { getRecents } from "@/helper/getData";
 
 const inter = Inter({ subsets: ["latin"] });
 
 export const getServerSideProps = async () => {
-  const res = await fetch(`${process.env.API_URL}recent-episodes`);
-  const recents = await res.json();
-  return { props: { recents: recents.results } };
+  // const res = await fetch(`${process.env.API_URL}recent-episodes`);
+  // const recents = await res.json();
+  // return { props: { recents: recents.results } };
+
+  const queryClient = new QueryClient();
+  await queryClient.prefetchQuery(["recents"], getRecents);
+  return {
+    props: {
+      dehydratedState: dehydrate(queryClient),
+    },
+  };
 };
 
-const Recent = ({ recents }: { recents: Anime[] }) => {
+const Recent = () => {
+  const { data, isLoading } = useQuery({
+    queryKey: ["recents"],
+    queryFn: getRecents,
+  });
+  isLoading && <p>Loading...</p>;
   return (
     <div className={inter.className}>
       <HtmlHead title="Recents | Animetsu" />
@@ -19,7 +34,7 @@ const Recent = ({ recents }: { recents: Anime[] }) => {
         Recent Releases
       </h1>
       <ul className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 md:gap-4">
-        {recents.map((anime: Anime) => (
+        {data.map((anime: Anime) => (
           <li
             key={anime.id}
             className="mb-2 cursor-pointer"

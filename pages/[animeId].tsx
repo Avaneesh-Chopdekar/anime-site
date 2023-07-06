@@ -2,6 +2,8 @@ import Link from "next/link";
 import Image from "next/image";
 import { Inter } from "next/font/google";
 import HtmlHead from "@/components/HtmlHead";
+import { QueryClient, dehydrate, useQuery } from "@tanstack/react-query";
+import { getAnimeInfo } from "@/helper/getData";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -9,29 +11,39 @@ export const getServerSideProps = async (context: {
   params: { animeId: string };
 }) => {
   const animeId = context.params.animeId;
-  const res = await fetch(`${process.env.API_URL}info/${animeId}`);
-  const animeInfo = await res.json();
-  return { props: { animeInfo } };
+  // const res = await fetch(`${process.env.API_URL}info/${animeId}`);
+  // const data = await res.json();
+  // return { props: { data } };
+  const queryClient = new QueryClient();
+  await queryClient.prefetchQuery(["info", animeId], () =>
+    getAnimeInfo(animeId)
+  );
+  return {
+    props: { animeId, dehydratedState: dehydrate(queryClient) },
+  };
 };
 
-const AnimeId = ({ animeInfo }: { animeInfo: AnimeInfo }) => {
-  const longSynopsis = animeInfo.description.length > 100;
-  const episodesArray = [...animeInfo.episodes].reverse();
-  if (animeInfo.type !== "OVA" && animeInfo.type !== "ONA") {
-    animeInfo.type =
-      animeInfo.type[0].toUpperCase() +
-      animeInfo.type.substring(1).toLowerCase();
+const AnimeId = ({ animeId }: { animeId: string }) => {
+  const { data, isLoading } = useQuery({
+    queryKey: ["info", animeId],
+    queryFn: () => getAnimeInfo(animeId),
+  });
+  const longSynopsis = data.description.length > 100;
+  const episodesArray = [...data.episodes].reverse();
+  if (data.type !== "OVA" && data.type !== "ONA") {
+    data.type =
+      data.type[0].toUpperCase() + data.type.substring(1).toLowerCase();
   }
 
   return (
     <>
-      <HtmlHead title={`${animeInfo.title} | Animetsu`} />
+      <HtmlHead title={`${data.title} | Animetsu`} />
       <div className={`${inter.className} mx-1 sm:mx-4 lg:mx-6`}>
         <div id="info" className="flex flex-col lg:flex-row">
           <Image
             className="rounded-md w-auto md:h-96 mb-6 hidden md:block lg:mb-0"
-            src={animeInfo.image}
-            alt={animeInfo.title}
+            src={data.image}
+            alt={data.title}
             width={300}
             height={600}
             style={{ objectFit: "cover" }}
@@ -39,57 +51,53 @@ const AnimeId = ({ animeInfo }: { animeInfo: AnimeInfo }) => {
           />
           <div className="ml-4">
             <h2 className="text-2xl sm:text-4xl font-bold mb-0 sm:mb-1">
-              {animeInfo.title}
+              {data.title}
             </h2>
-            <span className="opacity-50">{animeInfo.type}</span>
+            <span className="opacity-50">{data.type}</span>
             <p
               className={`opacity-50 my-3 ${
                 longSynopsis ? "text-xs sm:text-sm" : "text-sm sm:text-md"
               }`}
             >
-              {animeInfo.description}
+              {data.description}
             </p>
             <p className="text-sm sm:text-base">
               Genre:{" "}
               <span className="opacity-50">
-                {animeInfo.genres.map((g, i) => (
+                {data.genres.map((g: string, i: number) => (
                   <span key={i}>
                     {g}
-                    {animeInfo.genres.length === i + 1 || ", "}
+                    {data.genres.length === i + 1 || ", "}
                   </span>
                 ))}
               </span>
             </p>
             <p className="my-1 text-sm sm:text-base">
-              Status: <span className="opacity-50">{animeInfo.status}</span>
+              Status: <span className="opacity-50">{data.status}</span>
             </p>
             <p className="text-sm sm:text-base">
-              {animeInfo.totalEpisodes !== "1" ? "Episodes: " : "Episode: "}
-              <span className="opacity-50">{animeInfo.totalEpisodes}</span>
+              {data.totalEpisodes !== "1" ? "Episodes: " : "Episode: "}
+              <span className="opacity-50">{data.totalEpisodes}</span>
             </p>
             <p className="my-1 text-sm sm:text-base">
-              Released:{" "}
-              <span className="opacity-50">{animeInfo.releaseDate}</span>
+              Released: <span className="opacity-50">{data.releaseDate}</span>
             </p>
-            {animeInfo.otherName === "" || (
+            {data.otherName === "" || (
               <p className="text-sm sm:text-base">
                 Other Names:{" "}
-                <span className="opacity-50">{animeInfo.otherName}</span>
+                <span className="opacity-50">{data.otherName}</span>
               </p>
             )}
           </div>
         </div>
-        {(animeInfo.episodes.length !== 0 && animeInfo.type === "Movie") ||
-        animeInfo.type === "Special" ? (
+        {(data.episodes.length !== 0 && data.type === "Movie") ||
+        data.type === "Special" ? (
           <div className="my-8">
             <Link
-              href={`/watch/${animeInfo.episodes[0].id.replace(
-                "episode",
-                "ep"
-              )}`}
+              href={`/watch/${data.episodes[0].id.replace("episode", "ep")}`}
               className="link-btn px-6"
             >
-              Watch {animeInfo.type}
+              Watch {data.type}
             </Link>
           </div>
         ) : (

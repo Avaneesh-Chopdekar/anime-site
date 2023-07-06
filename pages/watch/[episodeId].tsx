@@ -3,6 +3,8 @@ import { Inter } from "next/font/google";
 import { GetStaticPaths } from "next/types";
 import VideoPlayer from "@/components/VideoPlayer";
 import HtmlHead from "@/components/HtmlHead";
+import { QueryClient, dehydrate, useQuery } from "@tanstack/react-query";
+import { getAnimeInfo, getEpisodeData } from "@/helper/getData";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -10,20 +12,29 @@ export const getStaticProps = async (context: {
   params: { episodeId: string };
 }) => {
   const episodeId = context.params.episodeId;
-  const epRes = await fetch(
-    `${process.env.API_URL}watch/${episodeId.replace("ep", "episode")}`
+  const new_epId = episodeId.replace("-ep-", "-episode-");
+  const queryClient = new QueryClient();
+  await queryClient.prefetchQuery(["watch", new_epId], () =>
+    getEpisodeData(new_epId)
   );
-  const epData = await epRes.json();
   let animeId = episodeId.split("-ep-")[0];
   if (animeId === "dr-stone-new-world") {
     animeId = "dr-stone-3rd-season";
   }
-  const animeRes = await fetch(`${process.env.API_URL}info/${animeId}`);
-  const animeInfo = await animeRes.json();
+  await queryClient.prefetchQuery(["info", animeId], () =>
+    getAnimeInfo(animeId)
+  );
   if (animeId === "dr-stone-3rd-season") {
     animeId = "dr-stone-new-world";
   }
-  return { props: { episodeId, epData, animeId, animeInfo } };
+  return {
+    props: {
+      animeId,
+      episodeId,
+      new_epId,
+      dehydratedState: dehydrate(queryClient),
+    },
+  };
 };
 
 export const getStaticPaths: GetStaticPaths<{
@@ -37,34 +48,42 @@ export const getStaticPaths: GetStaticPaths<{
 
 const Watch = ({
   episodeId,
-  epData,
+  new_epId,
   animeId,
-  animeInfo,
 }: {
   episodeId: string;
-  epData: EpisodeInfo;
+  new_epId: string;
   animeId: string;
-  animeInfo: AnimeInfo;
 }) => {
+  const animeData = useQuery({
+    queryKey: ["info", animeId],
+    queryFn: () => getAnimeInfo(animeId),
+  });
+  const epData = useQuery({
+    queryKey: ["watch", new_epId],
+    queryFn: () => getEpisodeData(new_epId),
+  });
   const episodeNum: number = episodeId.includes("-ep-")
     ? Number.parseInt(episodeId.split("-ep-")[1])
     : 0;
   const ifNotLastEpisode: boolean =
-    episodeNum !== Number.parseInt(animeInfo.totalEpisodes);
-  const episodesArray = [...animeInfo.episodes].reverse();
+    episodeNum !== Number.parseInt(animeData.data.totalEpisodes);
+  const episodesArray = [...animeData.data.episodes].reverse();
   return (
     <>
-      <HtmlHead title={`${animeInfo.title} Episode ${episodeNum} | Animetsu`} />
+      <HtmlHead
+        title={`${animeData.data.title} Episode ${episodeNum} | Animetsu`}
+      />
       <div className={inter.className}>
         <h2 className="text-sm xs:text-base sm:text-lg md:text-xl text-center">
           Playing,{" "}
           <Link
             className="font-bold hover:underline focus:underline"
-            href={`/${animeInfo.id}`}
+            href={`/${animeData.data.id}`}
           >
-            {animeInfo.title}
+            {animeData.data.title}
           </Link>{" "}
-          {animeInfo.totalEpisodes !== "1" && `Episode ${episodeNum}`}
+          {animeData.data.totalEpisodes !== "1" && `Episode ${episodeNum}`}
         </h2>
         <div className="flex justify-center">
           {/* <iframe
@@ -75,7 +94,9 @@ const Watch = ({
             scrolling="no"
           /> */}
           <div className="my-4 aspect-video h-[180px] sm:h-[225px] md:h-[340px]">
-            <VideoPlayer src={epData.sources[epData.sources.length - 2].url} />
+            <VideoPlayer
+              src={epData.data.sources[epData.data.sources.length - 2].url}
+            />
           </div>
         </div>
         <p className="text-sm sm:text-base text-center py-2">
@@ -100,7 +121,7 @@ const Watch = ({
             </Link>
           )}
         </div>
-        {animeInfo.episodes.length !== 1 && (
+        {animeData.data.episodes.length !== 1 && (
           <div
             className={`mt-8 mb-8 grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-12 gap-4`}
           >
